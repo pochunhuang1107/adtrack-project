@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: adtrack-flask-api # Name of the deployment
+spec:
+    replicas: 2 # Number of pod replicas
+    selector:
+        matchLabels:
+            app: adtrack-flask-api # Match pods with this label
+    template:
+        metadata:
+            labels:
+                app: adtrack-flask-api # Label for the pods
+        spec:
+            containers:
+                - name: adtrack-flask-api # Name of the container
+                  image: adtrack-flask-api # Docker image name (from Minikube build)
+                  imagePullPolicy: Never # Prevent Kubernetes from pulling the image
+                  ports:
+                      - containerPort: 5000 # Port the app runs on inside the container
