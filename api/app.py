@@ -1,17 +1,30 @@
 from flask import Flask, request, jsonify
 from prometheus_flask_exporter import PrometheusMetrics
+from kafka import KafkaProducer
+import json
 
 app = Flask(__name__)
 metrics = PrometheusMetrics(app)
 
+producer = KafkaProducer(
+    bootstrap_servers='localhost:9092',
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
+
 @app.route('/events', methods=['POST'])
-def log_event():
+def events():
     data = request.get_json()
-    return jsonify(data), 200
+    if not data:
+        return jsonify({"error": "Invalid input"}), 400
+    
+    producer.send('ad-events', value=data)
+    producer.flush()
+
+    return jsonify({"message": "Event received"}), 200
 
 @app.route('/', methods=['GET'])
 def home():
     return "Welcome to the Ad Tracking API!", 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, use_reloader=False)
+    app.run(host="0.0.0.0", port=5000)
