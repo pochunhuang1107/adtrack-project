@@ -6,5 +6,4 @@ prometheus-flask-exporter==0.23.1
 kafka-python==2.0.2
 
 # PostgreSQL dependencies
-psycopg2==2.9.6
-
+psycopg2-binary==2.9.6

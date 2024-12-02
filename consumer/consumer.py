@@ -14,7 +14,7 @@ DB_CONFIG = {
 # Kafka Consumer Configuration
 consumer = KafkaConsumer(
     'ad-events',
-    bootstrap_servers='localhost:9092',
+    bootstrap_servers='localhost:9093',
     auto_offset_reset='earliest',
     enable_auto_commit=True,
     group_id='adtrack-group',
