@@ -1,20 +1,21 @@
 from kafka import KafkaConsumer
 import psycopg2
 import json
+import os
 
 # PostgreSQL Configuration
 DB_CONFIG = {
-    "dbname": "adtrack",  # Update with your DB details
-    "user": "admin",
-    "password": "admin",
-    "host": "localhost",
-    "port": 5432
+    "dbname": os.getenv("POSTGRES_DB", "adtrack"),
+    "user": os.getenv("POSTGRES_USER", "admin"),
+    "password": os.getenv("POSTGRES_PASSWORD", "admin"),
+    "host": os.getenv("POSTGRES_HOST", "localhost"),
+    "port": int(os.getenv("POSTGRES_PORT", 5432)),
 }
 
 # Kafka Consumer Configuration
 consumer = KafkaConsumer(
-    'ad-events',
-    bootstrap_servers='localhost:9093',
+    os.getenv("KAFKA_TOPIC", "ad-events"),
+    bootstrap_servers=os.getenv("KAFKA_BROKER", "localhost:9092"),
     auto_offset_reset='earliest',
     enable_auto_commit=True,
     group_id='adtrack-group',

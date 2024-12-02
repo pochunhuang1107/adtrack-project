@@ -1,9 +1,0 @@
-# Flask API dependencies
-flask==2.3.2
-prometheus-flask-exporter==0.23.1
-
-# Kafka producer and consumer dependencies
-kafka-python==2.0.2
-
-# PostgreSQL dependencies
-psycopg2-binary==2.9.6
