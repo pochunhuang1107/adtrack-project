@@ -7,7 +7,7 @@ services:
             ZOOKEEPER_TICK_TIME: 2000
 
     kafka:
-        image: confluentinc/cp-kafka:latest
+        image: confluentinc/cp-kafka:7.3.0
         depends_on:
             - zookeeper
         environment:
@@ -18,7 +18,7 @@ services:
             KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
             KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
             KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-            KAFKA_CREATE_TOPICS: 'ad-events:1:1'
+            KAFKA_CREATE_TOPICS: 'ad-events:1:1,processed-events:1:1'
         ports:
             - '9092:9092'
             - '9093:9093'
@@ -89,7 +89,7 @@ services:
                 condition: service_healthy
         environment:
             KAFKA_BROKER: kafka:9092
-            KAFKA_TOPIC: ad-events
+            KAFKA_TOPIC: processed-events
             POSTGRES_DB: adtrack
             POSTGRES_USER: admin
             POSTGRES_PASSWORD: admin

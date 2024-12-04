@@ -14,13 +14,16 @@ DB_CONFIG = {
 
 # Kafka Consumer Configuration
 consumer = KafkaConsumer(
-    os.getenv("KAFKA_TOPIC", "ad-events"),
+    os.getenv("KAFKA_TOPIC", "processed-events"),
     bootstrap_servers=os.getenv("KAFKA_BROKER", "localhost:9092"),
     auto_offset_reset='earliest',
     enable_auto_commit=True,
     group_id='adtrack-group',
     value_deserializer=lambda x: json.loads(x.decode('utf-8'))
 )
+
+# For debugging
+print(f"Subscribed to topics: {consumer.subscription()}")
 
 # Connect to PostgreSQL
 try:
@@ -34,7 +37,8 @@ try:
             id SERIAL PRIMARY KEY,
             ad_id VARCHAR(255),
             action VARCHAR(255),
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            timestamp TIMESTAMP,
+            processed_timestamp TIMESTAMP
         )
     """)
     conn.commit()
@@ -47,13 +51,15 @@ def process_event(event):
     try:
         ad_id = event.get('ad_id')
         action = event.get('action')
+        timestamp = event.get('timestamp')
+        processed_timestamp = event.get('processed_timestamp')
         if not ad_id or not action:
             print("Invalid event:", event)
             return
         
         cursor.execute(
-            "INSERT INTO ad_events (ad_id, action) VALUES (%s, %s)",
-            (ad_id, action)
+            "INSERT INTO ad_events (ad_id, action, timestamp, processed_timestamp) VALUES (%s, %s, %s, %s)",
+            (ad_id, action, timestamp, processed_timestamp)
         )
         conn.commit()
         print(f"Stored event: {event}")

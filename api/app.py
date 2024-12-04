@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from prometheus_flask_exporter import PrometheusMetrics
 from kafka import KafkaProducer
+from datetime import datetime, timezone
 import json
 
 app = Flask(__name__)
@@ -17,6 +18,8 @@ def events():
     if not data:
         return jsonify({"error": "Invalid input"}), 400
     
+    data['timestamp'] = datetime.now(timezone.utc).isoformat()
+
     producer.send('ad-events', value=data)
     producer.flush()
 
