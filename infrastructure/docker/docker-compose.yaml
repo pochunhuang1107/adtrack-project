@@ -96,5 +96,32 @@ services:
             POSTGRES_HOST: postgres
             POSTGRES_PORT: 5432
 
+    opensearch:
+        image: opensearchproject/opensearch:latest
+        container_name: opensearch
+        environment:
+            - discovery.type=single-node
+            - bootstrap.memory_lock=true
+            - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+            - OPENSEARCH_INITIAL_ADMIN_PASSWORD=GGafk123!
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - opensearch-data:/usr/share/opensearch/data
+        ports:
+            - "9200:9200"
+            - "9600:9600"
+
+    opensearch-dashboards:
+        image: opensearchproject/opensearch-dashboards:latest
+        container_name: opensearch-dashboards
+        environment:
+            OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
+        ports:
+            - "5601:5601"
+
 volumes:
     postgres-data:
+    opensearch-data:
