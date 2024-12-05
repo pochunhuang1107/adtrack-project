@@ -1,13 +1,92 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 *.pyo
 
+# Virtual Environment
+venv/
+env/
+.venv/
+.env/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Logs
+*.log
+*.out
+*.err
+*.audit
+
+# Unit Test / Coverage Reports
+*.coverage
+.cache/
+coverage/
+nosetests.xml
+junit.xml
+test-results.xml
+
 # Docker
+docker-compose.override.yml
 *.tar
 
-# Kubernetes
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+
+# Byte-compiled or optimized files
+*.pyc
+*.pyd
+*.pyo
+
+# Environment variables
+.env
+.env.*
+*.local
+
+# Database Files
+*.sqlite3
+
+# Build directories and artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+*.manifest
+
+# JavaScript/Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Static files
+staticfiles/
+media/
+
+# Generated files
+*.bak
+*.tmp
+*.old
+*.swp
+*.swo
 *.log
 
-# Others
-.env
+# Operating System Files
+*.stackdump
+*.fuse_hidden*
