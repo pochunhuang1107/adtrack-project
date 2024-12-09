@@ -1,5 +1,5 @@
-from fastapi import FastAPI, WebSocket, Query, HTTPException, WebSocketDisconnect
-import asyncio
+from fastapi import FastAPI, WebSocket, Query, HTTPException, Request, WebSocketDisconnect
+from fastapi.responses import PlainTextResponse
 import asyncpg
 import redis.asyncio as aioredis
 import os
@@ -8,18 +8,24 @@ import logging
 from typing import Optional
 from contextlib import asynccontextmanager
 from collections import defaultdict
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware  # Import SlowAPI Middleware
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Rate Limiting Setup
+# Default: 60 requests/minute globally. Adjust as needed.
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+
 # Limits for development purpose
 MAX_WEBSOCKETS = 2
-HISTORICAL_RATE_LIMIT = 1  # 1 request per second
 
-# State
+# State to track active WebSocket connections per ad_id
 active_websockets = defaultdict(set)
-historical_request_timestamps = defaultdict(float)
 
 # Database Configuration
 DB_CONFIG = {
@@ -34,7 +40,7 @@ DB_CONFIG = {
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
-# Async Context Managers for Database and Redis Connections
+
 class Database:
     def __init__(self):
         self.pool: Optional[asyncpg.pool.Pool] = None
@@ -73,6 +79,7 @@ class Database:
             records = await connection.fetch(query, ad_id)
             return records
 
+
 class RedisClient:
     def __init__(self):
         self.redis: Optional[aioredis.Redis] = None
@@ -95,10 +102,12 @@ class RedisClient:
     async def disconnect(self):
         if self.redis:
             await self.redis.close()
-            await self.redis.connection_pool.disconnect()
+            # The following line is optional and depends on the aioredis version
+            if hasattr(self.redis, 'connection_pool') and self.redis.connection_pool:
+                await self.redis.connection_pool.disconnect()
             logger.info("Redis connection pool closed.")
 
-# Initialize FastAPI app with lifespan event handlers
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db = Database()
@@ -115,20 +124,39 @@ async def lifespan(app: FastAPI):
         await redis_client.disconnect()
         logger.info("Shutting down application...")
 
+
+# Initialize FastAPI with lifespan
 app = FastAPI(lifespan=lifespan)
 
+# Attach the limiter to app.state so SlowAPI middleware can access it
+app.state.limiter = limiter
+
+# Add SlowAPI middleware after attaching the limiter
+app.add_middleware(SlowAPIMiddleware)
+
+# Rate limit exception handler
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return PlainTextResponse(str(exc), status_code=429)
+
+# Optional: Existing middleware for processing requests
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    # This middleware can be used to add custom headers or process the request further
+    response = await call_next(request)
+    return response
+
+# Endpoint: Fetch Historical Data
 @app.get("/api/historical-data")
-async def get_historical_data(ad_id: str, interval: str = Query(..., pattern="^(1h|1d|1w|1m)$")):
+@limiter.limit("10/minute")  # 10 requests per minute for this endpoint
+async def get_historical_data(
+    request: Request,  # Added Request parameter for SlowAPI
+    ad_id: str,
+    interval: str = Query(..., pattern="^(1h|1d|1w|1m)$")
+):
     """
     Fetch historical data for a specific ad_id and time interval.
     """
-    user_key = f"historical:{ad_id}"
-    current_time = asyncio.get_event_loop().time()
-    last_request_time = historical_request_timestamps[user_key]
-    if current_time - last_request_time < 1 / HISTORICAL_RATE_LIMIT:
-        raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
-    historical_request_timestamps[user_key] = current_time
-
     db: Database = app.state.db
     try:
         records = await db.fetch_historical_data(ad_id, interval)
@@ -143,6 +171,7 @@ async def get_historical_data(ad_id: str, interval: str = Query(..., pattern="^(
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Endpoint: Fetch Real-Time Metrics
 @app.get("/api/metrics/{ad_id}")
 async def get_real_time_metrics(ad_id: str):
     """
@@ -165,6 +194,7 @@ async def get_real_time_metrics(ad_id: str):
         logger.error(f"Error fetching metrics: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# WebSocket Endpoint: Real-Time Data Streaming
 @app.websocket("/api/websocket/{ad_id}")
 async def websocket_endpoint(websocket: WebSocket, ad_id: str):
     """
@@ -178,19 +208,25 @@ async def websocket_endpoint(websocket: WebSocket, ad_id: str):
 
     await websocket.accept()
     active_websockets[ad_id].add(websocket)
+    logger.info(f"WebSocket connected for ad_id: {ad_id}")
+
     try:
         pubsub = redis_client.redis.pubsub()
         await pubsub.subscribe('realtime-updates')
-        logger.info(f"WebSocket connected for ad_id: {ad_id}")
+        logger.info(f"Subscribed to 'realtime-updates' channel for ad_id: {ad_id}")
 
         async for message in pubsub.listen():
             if message["type"] == "message":
-                data = json.loads(message["data"])
-                if data.get("ad_id") == ad_id:
-                    await websocket.send_json(data)
+                try:
+                    data = json.loads(message["data"])
+                    if data.get("ad_id") == ad_id:
+                        await websocket.send_json(data)
+                except json.JSONDecodeError:
+                    logger.error("Failed to decode JSON message from Redis.")
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for ad_id: {ad_id}")
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:
         active_websockets[ad_id].remove(websocket)
+        logger.info(f"WebSocket connection closed for ad_id: {ad_id}")
