@@ -3,12 +3,13 @@ from prometheus_flask_exporter import PrometheusMetrics
 from kafka import KafkaProducer
 from datetime import datetime, timezone
 import json
+import os
 
 app = Flask(__name__)
 metrics = PrometheusMetrics(app)
 
 producer = KafkaProducer(
-    bootstrap_servers='localhost:9093',
+    bootstrap_servers=os.getenv('KAFKA_BROKER', 'localhost:9093'),
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
@@ -19,6 +20,9 @@ def events():
         return jsonify({"error": "Invalid input"}), 400
     
     data['timestamp'] = datetime.now(timezone.utc).isoformat()
+    # Optionally enrich geolocation or use provided lat/lon
+    data['latitude'] = data.get('latitude')
+    data['longitude'] = data.get('longitude')
 
     producer.send('ad-events', value=data)
     producer.flush()
