@@ -90,3 +90,6 @@ media/
 # Operating System Files
 *.stackdump
 *.fuse_hidden*
+
+# Other
+*.geohson
