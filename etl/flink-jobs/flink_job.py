@@ -216,23 +216,6 @@ class MetricsAggregator(MapFunction):
         # Calculate CTR
         ctr = (current_clicks / current_views) * 100 if current_views > 0 else 0.0
 
-        # Update the database with new metrics
-        try:
-            self.db_cursor.execute("""
-                INSERT INTO ad_metrics (ad_id, total_views, total_clicks, ctr, cumulative_cost)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (ad_id) DO UPDATE SET
-                    total_views = ad_metrics.total_views + EXCLUDED.total_views,
-                    total_clicks = ad_metrics.total_clicks + EXCLUDED.total_clicks,
-                    ctr = ((ad_metrics.total_clicks + EXCLUDED.total_clicks)::FLOAT / 
-                           (ad_metrics.total_views + EXCLUDED.total_views)::FLOAT) * 100,
-                    cumulative_cost = ad_metrics.cumulative_cost + EXCLUDED.cumulative_cost
-            """, (ad_id, current_views, current_clicks, ctr, total_cost))
-            self.db_connection.commit()
-            logger.debug(f"Updated PostgreSQL for ad_id {ad_id}: Views={current_views}, Clicks={current_clicks}, CTR={ctr}, Cost={total_cost}")
-        except Exception as e:
-            logger.error(f"Error updating PostgreSQL for ad_id {ad_id}: {e}")
-
         # Update Redis cache with new total_views, total_clicks, ctr, and cumulative_cost
         try:
             self.redis_client.hmset(f"ad_counts:{ad_id}", {
@@ -245,7 +228,7 @@ class MetricsAggregator(MapFunction):
         except Exception as e:
             logger.error(f"Error updating Redis for ad_id {ad_id}: {e}")
 
-        # Optionally, publish to Redis channel for real-time updates
+        # Publish to Redis channel for real-time updates
         try:
             publish_message = {
                 'ad_id': ad_id,

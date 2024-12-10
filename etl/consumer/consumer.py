@@ -3,7 +3,6 @@ import json
 import logging
 from kafka import KafkaConsumer
 import psycopg2
-import redis
 from psycopg2 import sql
 
 # Configure Logging
@@ -23,8 +22,6 @@ required_env_vars = [
     "POSTGRES_PASSWORD",
     "POSTGRES_HOST",
     "POSTGRES_PORT",
-    "REDIS_HOST",
-    "REDIS_PORT",
     "KAFKA_TOPIC",
     "KAFKA_BROKER"
 ]
@@ -43,10 +40,6 @@ DB_CONFIG = {
     "port": int(os.getenv("POSTGRES_PORT")),
 }
 
-# Redis Configuration
-REDIS_HOST = os.getenv("REDIS_HOST")
-REDIS_PORT = int(os.getenv("REDIS_PORT"))
-
 # Kafka Consumer Configuration
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC")
 KAFKA_BROKER = os.getenv("KAFKA_BROKER")
@@ -60,15 +53,6 @@ consumer = KafkaConsumer(
     value_deserializer=lambda x: json.loads(x.decode('utf-8')),
     consumer_timeout_ms=1000
 )
-
-# Connect to Redis with Connection Pooling
-try:
-    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-    r.ping()
-    logger.info("Connected to Redis.")
-except redis.ConnectionError as e:
-    logger.error(f"Failed to connect to Redis: {e}")
-    exit(1)
 
 # Connect to PostgreSQL
 try:
@@ -156,27 +140,6 @@ def process_event(event):
         ))
         conn.commit()
         logger.debug(f"Inserted event into PostgreSQL for ad_id: {ad_id}")
-
-        # Update Redis
-        r.hset(f"ad_counts:{ad_id}", mapping={
-            "total_views": total_views,
-            "total_clicks": total_clicks,
-            "ctr": ctr,
-            "cumulative_cost": cumulative_cost
-        })
-        logger.debug(f"Updated Redis for ad_id: {ad_id}")
-
-        # Publish to Redis channel for real-time updates
-        publish_message = {
-            'ad_id': ad_id,
-            'action': action,
-            'total_views': total_views,
-            'total_clicks': total_clicks,
-            'ctr': ctr,
-            'cumulative_cost': cumulative_cost
-        }
-        r.publish('realtime-updates', json.dumps(publish_message))
-        logger.debug(f"Published real-time update for ad_id: {ad_id}")
 
         logger.info(f"Processed and stored event for ad_id: {ad_id}")
     except Exception as e:

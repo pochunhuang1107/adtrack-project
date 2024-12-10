@@ -48,6 +48,8 @@ services:
         image: redis:alpine
         ports:
             - '6379:6379'
+        volumes:
+            - redis-data:/data
         healthcheck:
             test: ['CMD', 'redis-cli', 'ping']
             interval: 5s
@@ -119,8 +121,6 @@ services:
             POSTGRES_PASSWORD: admin
             POSTGRES_HOST: postgres
             POSTGRES_PORT: 5432
-            REDIS_HOST: redis
-            REDIS_PORT: 6379
 
     opensearch:
         image: opensearchproject/opensearch:latest
@@ -195,3 +195,4 @@ services:
 volumes:
     postgres-data:
     opensearch-data:
+    redis-data:
