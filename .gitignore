@@ -92,4 +92,4 @@ media/
 *.fuse_hidden*
 
 # Other
-*.geohson
+*.geojson
