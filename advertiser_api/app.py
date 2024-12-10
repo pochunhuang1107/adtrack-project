@@ -11,7 +11,8 @@ from collections import defaultdict
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware  # Import SlowAPI Middleware
+from slowapi.middleware import SlowAPIMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -40,6 +41,11 @@ DB_CONFIG = {
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
+# Define allowed origins
+origins = [
+    "http://localhost",
+    "http://localhost:3000"
+]
 
 class Database:
     def __init__(self):
@@ -133,6 +139,14 @@ app.state.limiter = limiter
 
 # Add SlowAPI middleware after attaching the limiter
 app.add_middleware(SlowAPIMiddleware)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Rate limit exception handler
 @app.exception_handler(RateLimitExceeded)
