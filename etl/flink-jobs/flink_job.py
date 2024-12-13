@@ -3,8 +3,9 @@ from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaPr
 from pyflink.datastream.formats.json import JsonRowSerializationSchema, JsonRowDeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.common import Row
+from pyflink.common.time import Time
 from pyflink.datastream.functions import MapFunction, RuntimeContext
-from pyflink.datastream.state import ValueStateDescriptor
+from pyflink.datastream.state import ValueStateDescriptor, StateTtlConfig
 from datetime import datetime, timezone
 import os
 import json
@@ -111,15 +112,27 @@ kafka_producer = FlinkKafkaProducer(
     }
 )
 
+ttl_config = StateTtlConfig \
+  .new_builder(Time.days(1)) \
+  .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
+  .set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired) \
+  .build()
+
 ds = env.add_source(kafka_consumer)
 
 class MetricsAggregator(MapFunction):
 
     def open(self, runtime_context: RuntimeContext):
         # Initialize state descriptors
-        self.view_count_state = runtime_context.get_state(ValueStateDescriptor("current_view_count", Types.INT()))
-        self.click_count_state = runtime_context.get_state(ValueStateDescriptor("current_click_count", Types.INT()))
-        self.total_cost_state = runtime_context.get_state(ValueStateDescriptor("total_cost", Types.FLOAT()))
+        view_count = ValueStateDescriptor("current_view_count", Types.INT())
+        click_count = ValueStateDescriptor("current_click_count", Types.INT())
+        total_cost = ValueStateDescriptor("total_cost", Types.FLOAT())
+        view_count.enable_time_to_live(ttl_config)
+        click_count.enable_time_to_live(ttl_config)
+        total_cost.enable_time_to_live(ttl_config)
+        self.view_count_state = runtime_context.get_state(view_count)
+        self.click_count_state = runtime_context.get_state(click_count)
+        self.total_cost_state = runtime_context.get_state(total_cost)
 
         # Initialize PostgreSQL connection once per subtask
         try:

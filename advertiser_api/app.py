@@ -1,4 +1,5 @@
-from fastapi import FastAPI, WebSocket, Query, HTTPException, Request, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, Query, HTTPException, Request
+from fastapi.websockets import WebSocketDisconnect, WebSocketState
 from fastapi.responses import PlainTextResponse
 import asyncpg
 import redis.asyncio as aioredis
@@ -230,6 +231,8 @@ async def websocket_endpoint(websocket: WebSocket, ad_id: str):
         logger.info(f"Subscribed to 'realtime-updates' channel for ad_id: {ad_id}")
 
         async for message in pubsub.listen():
+            if websocket.client_state == WebSocketState.DISCONNECTED:
+                raise WebSocketDisconnect(code=1006)
             if message["type"] == "message":
                 try:
                     data = json.loads(message["data"])
