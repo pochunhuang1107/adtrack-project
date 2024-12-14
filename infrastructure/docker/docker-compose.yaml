@@ -98,6 +98,7 @@ services:
                 condition: service_healthy
         environment:
             KAFKA_BROKER: kafka:9092
+            SCHEMA_REGISTRY_URL: http://schema-registry:8082
         ports:
             - '5000:5000'
 
@@ -121,6 +122,7 @@ services:
             POSTGRES_PASSWORD: admin
             POSTGRES_HOST: postgres
             POSTGRES_PORT: 5432
+            SCHEMA_REGISTRY_URL: http://schema-registry:8082
 
     opensearch:
         image: opensearchproject/opensearch:latest
@@ -169,6 +171,7 @@ services:
             POSTGRES_PORT: 5432
             REDIS_HOST: redis
             REDIS_PORT: 6379
+            SCHEMA_REGISTRY_URL: http://schema-registry:8082
 
     advertiser_api:
         build:
@@ -192,7 +195,49 @@ services:
             kafka:
                 condition: service_healthy
 
+    schema-registry:
+        image: confluentinc/cp-schema-registry:latest
+        depends_on:
+            - kafka
+        environment:
+            SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:9092'
+            SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8082'
+            SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
+        ports:
+            - '8082:8082'
+
+    minio:
+        image: minio/minio:latest
+        environment:
+            MINIO_ROOT_USER: minioadmin
+            MINIO_ROOT_PASSWORD: minioadmin
+        command: server /data
+        ports:
+            - '9000:9000' # MinIO API
+            - '9001:9001' # MinIO Console
+        volumes:
+            - minio-data:/data
+        healthcheck:
+            test: ['CMD', 'curl', '-f', 'http://minio:9000/minio/health/live']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    # Optional: MinIO Client (mc) for admin tasks
+    minio-client:
+        image: bitnami/minio-client:latest
+        depends_on:
+            - minio
+        entrypoint: ['sh', '-c']
+        command: >
+            "while ! nc -z minio 9000;
+            do sleep 1;
+            done;
+            mc config host add myminio http://minio:9000 minioadmin minioadmin &&
+            mc mb myminio/adtrack-data || true"
+
 volumes:
     postgres-data:
     opensearch-data:
     redis-data:
+    minio-data:

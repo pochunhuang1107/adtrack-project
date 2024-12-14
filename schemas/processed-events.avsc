@@ -1,0 +1,37 @@
+{
+    "type": "record",
+    "name": "ProcessedAdEvent",
+    "namespace": "com.example.advertising",
+    "fields": [
+        { "name": "ad_id", "type": "string" },
+        { "name": "campaign_id", "type": ["null", "string"], "default": null },
+        { "name": "creative_id", "type": ["null", "string"], "default": null },
+        { "name": "action", "type": "string" },
+        { "name": "user_id", "type": ["null", "string"], "default": null },
+        { "name": "session_id", "type": ["null", "string"], "default": null },
+        { "name": "device_type", "type": ["null", "string"], "default": null },
+        { "name": "browser", "type": ["null", "string"], "default": null },
+        {
+            "name": "operating_system",
+            "type": ["null", "string"],
+            "default": null
+        },
+        { "name": "ip_address", "type": ["null", "string"], "default": null },
+        { "name": "ad_placement", "type": ["null", "string"], "default": null },
+        { "name": "referrer_url", "type": ["null", "string"], "default": null },
+        {
+            "name": "destination_url",
+            "type": ["null", "string"],
+            "default": null
+        },
+        { "name": "cpc", "type": ["null", "float"], "default": null },
+        { "name": "latitude", "type": ["null", "float"], "default": null },
+        { "name": "longitude", "type": ["null", "float"], "default": null },
+        { "name": "timestamp", "type": "string" },
+        { "name": "processed_timestamp", "type": "string" },
+        { "name": "total_views", "type": "int" },
+        { "name": "total_clicks", "type": "int" },
+        { "name": "ctr", "type": "float" },
+        { "name": "cumulative_cost", "type": "float" }
+    ]
+}
