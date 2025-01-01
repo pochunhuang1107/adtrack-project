@@ -212,7 +212,48 @@ services:
         depends_on:
             - minio
         entrypoint: /bin/sh
-        command: ["-c", "until (mc config host add local http://minio:9000 admin admin123); do sleep 1; done; mc mb local/adtrack-data || true"]
+        command:
+            [
+                '-c',
+                'until (mc config host add local http://minio:9000 admin admin123); do sleep 1; done; mc mb local/adtrack-data || true',
+            ]
+
+    kafka-connect:
+        build:
+            context: ./kafka-connect
+        depends_on:
+            kafka:
+                condition: service_healthy
+            minio:
+                condition: service_healthy
+        ports:
+            - '8083:8083'
+        environment:
+            CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+            CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+            CONNECT_GROUP_ID: 'connect-cluster'
+            CONNECT_CONFIG_STORAGE_TOPIC: 'connect-configs'
+            CONNECT_OFFSET_STORAGE_TOPIC: 'connect-offsets'
+            CONNECT_STATUS_STORAGE_TOPIC: 'connect-status'
+            CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+            CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+            CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+            CONNECT_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+            CONNECT_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+            CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+            CONNECT_PLUGIN_PATH: '/usr/share/confluent-hub-components'
+            CONNECT_LOG4J_LOGGERS: 'org.reflections=ERROR'
+        healthcheck:
+            test: ['CMD', 'curl', '-f', 'http://localhost:8083/connectors']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    topic-creator:
+        build:
+            context: ../topic-creator
+        depends_on:
+            - kafka
 
 volumes:
     postgres-data:

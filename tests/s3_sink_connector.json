@@ -1,0 +1,19 @@
+{
+    "name": "s3-sink",
+    "config": {
+        "connector.class": "io.confluent.connect.s3.S3SinkConnector",
+        "tasks.max": "1",
+        "topics": "processed-events",
+        "s3.region": "us-east-1",
+        "s3.bucket.name": "adtrack-data",
+        "s3.part.size": "5242880",
+        "store.url": "http://minio:9000",
+        "format.class": "io.confluent.connect.s3.format.json.JsonFormat",
+        "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+        "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+        "value.converter.schemas.enable": "false",
+        "flush.size": "10",
+        "aws.access.key.id": "admin",
+        "aws.secret.access.key": "admin123"
+    }
+}
